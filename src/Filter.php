@@ -86,7 +86,7 @@ class Filter {
       }
     }
     if(empty($result)) {
-      return '(1=1)';
+      return array('(1=1)');
     }
     return $result;
   }
