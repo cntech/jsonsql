@@ -74,12 +74,25 @@ class Filter {
     $result = array();
     foreach($filter as $key => $value) {
       if($key[0] == '$') {
-        $sub_result = $this->apply($value);
-        if($filter['$and']) {
-          array_push($result, call_user_func_array(array($qb->expr(), 'andX'), $sub_result));
-        }
-        if($filter['$or']) {
-          array_push($result, call_user_func_array(array($qb->expr(), 'orX'), $sub_result));
+        // go through all sub-fields or sub-$ands/$ors of this $and/$or:
+        $sub_result = array_map(function($item) use ($qb) {
+          // * usually, $item will contain tha data of a JSON object with a
+          //   single key that either represents a field name or a sub-$and/$or
+          // * in the latter case, the single key will be either "$and" or "$or"
+          // * still, $item may contain several keys: this is why we apply
+          //   "andX" before returning
+          $mapped = $this->apply($item);
+          return call_user_func_array(array($qb->expr(), 'andX'), $mapped);
+        }, $value);
+        if(count($sub_result)) {
+          if(array_key_exists('$and', $filter)) {
+            array_push($result, call_user_func_array(array($qb->expr(), 'andX'), $sub_result));
+          }
+          if(array_key_exists('$or', $filter)) {
+            array_push($result, call_user_func_array(array($qb->expr(), 'orX'), $sub_result));
+          }
+        } else {
+          array_push($result, '(1=1)');
         }
       } else {
         array_push($result, $this->applyOnField($key, $value));
